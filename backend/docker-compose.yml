@@ -1,0 +1,27 @@
+# Uso (a partir da raiz do projeto): docker compose -f backend/docker-compose.yml up --build
+# Defina as variáveis em um arquivo .env (JWT_SECRET com 32+ caracteres).
+services:
+  api:
+    build: { context: .., dockerfile: backend/Dockerfile }
+    ports: ["8000:8000"]
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-moderador@aps.local}
+      ADMIN_SENHA: ${ADMIN_SENHA:?defina ADMIN_SENHA}
+      SERVICO_EMAIL: ${SERVICO_EMAIL:-ingestao@aps.local}
+      SERVICO_SENHA: ${SERVICO_SENHA:?defina SERVICO_SENHA}
+    volumes: ["dados:/data"]
+    restart: unless-stopped
+  ingestao:
+    build: { context: .., dockerfile: backend/Dockerfile }
+    command: ["python", "-m", "backend.ingestao.ingestor"]
+    depends_on: { api: { condition: service_healthy } }
+    environment:
+      API_URL: http://api:8000
+      SERVICO_EMAIL: ${SERVICO_EMAIL:-ingestao@aps.local}
+      SERVICO_SENHA: ${SERVICO_SENHA:?defina SERVICO_SENHA}
+      CSV_PATH: /dados/cemaden/reindesc_tabela_ocorrencias.csv
+      INTERVALO_S: "600"
+    volumes: ["../dados:/dados:ro"]
+    restart: unless-stopped
+volumes: { dados: {} }
